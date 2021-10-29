@@ -1,0 +1,21 @@
+{
+  "files": {
+    "main.css": "/static/css/main.6125b472.chunk.css",
+    "main.js": "/static/js/main.a4b3762f.chunk.js",
+    "main.js.map": "/static/js/main.a4b3762f.chunk.js.map",
+    "runtime~main.js": "/static/js/runtime~main.a8a9905a.js",
+    "runtime~main.js.map": "/static/js/runtime~main.a8a9905a.js.map",
+    "static/css/2.543b7d0c.chunk.css": "/static/css/2.543b7d0c.chunk.css",
+    "static/js/2.8e245a89.chunk.js": "/static/js/2.8e245a89.chunk.js",
+    "static/js/2.8e245a89.chunk.js.map": "/static/js/2.8e245a89.chunk.js.map",
+    "index.html": "/index.html",
+    "precache-manifest.b22ced1762fc75dce9e7e2b2ab923d80.js": "/precache-manifest.b22ced1762fc75dce9e7e2b2ab923d80.js",
+    "service-worker.js": "/service-worker.js",
+    "static/css/2.543b7d0c.chunk.css.map": "/static/css/2.543b7d0c.chunk.css.map",
+    "static/css/main.6125b472.chunk.css.map": "/static/css/main.6125b472.chunk.css.map",
+    "static/media/tooplate-style.css": "/static/media/bg-img-3.8376eef0.jpg",
+    "static/media/font-awesome.min.css": "/static/media/fontawesome-webfont.fee66e71.woff",
+    "static/media/hotel-1.jpg": "/static/media/hotel-1.86503995.jpg",
+    "static/media/slick-theme.css": "/static/media/slick.f97e3bbf.svg"
+  }
+}

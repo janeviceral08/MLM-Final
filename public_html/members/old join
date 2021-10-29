@@ -1,0 +1,957 @@
+
+<?php
+include('php-includes/connect.php');
+include('php-includes/check-login.php');
+include('ChromePhp.php');
+error_reporting(0);
+$get_user = $_SESSION['userid'];
+
+
+
+$get_userid = mysqli_query($con,"select * from user where account='$get_user'");
+						$result_get_userid  = mysqli_fetch_array($get_userid );
+						$userid = $result_get_userid['email'];
+$get_userid_pin = mysqli_query($con,"select * from pin_list where userid='$get_user' and status='open' limit 1");
+						$result_get_userid_pin  = mysqli_fetch_array($get_userid_pin );
+						$userid_pin = $result_get_userid_pin['pin'];
+										
+						
+$capping = 5000000;
+?>
+<?php
+//User cliced on join
+if(isset($_GET['join_user'])){
+	$side='';
+	$first_name = mysqli_real_escape_string($con,$_GET['first_name']);
+	$middle_name = mysqli_real_escape_string($con,$_GET['middle_name']);
+	$last_name = mysqli_real_escape_string($con,$_GET['last_name']);
+	$gender = mysqli_real_escape_string($con,$_GET['gender']);
+	$birthdate = mysqli_real_escape_string($con,$_GET['birthdate']);
+	
+	$pin = mysqli_real_escape_string($con,$_GET['pin']);
+	$email = mysqli_real_escape_string($con,$_GET['email']);
+	$mobile = mysqli_real_escape_string($con,$_GET['mobile']);
+	$address = mysqli_real_escape_string($con,$_GET['address']);
+	$side = mysqli_real_escape_string($con,$_GET['side']);
+	$password = "123456";
+	$mobile2 = mysqli_real_escape_string($con,$_GET['mobile2']);
+		$fb = mysqli_real_escape_string($con,$_GET['fb']);
+		$beneficiary = mysqli_real_escape_string($con,$_GET['beneficiary']);
+	$beneficiary_contact = mysqli_real_escape_string($con,$_GET['beneficiary_contact']);
+	$beneficiary_Address = mysqli_real_escape_string($con,$_GET['beneficiary_Address']);
+	
+	
+	
+	
+	$under_userid = $userid;
+	ChromePhp::log($side);
+	$flag = 0;
+$str=time();
+
+
+ $t= substr($str, -5);
+	$level = getUserLevel($under_userid);
+	
+	if($pin!='' && $email!='' && $mobile!='' && $address!='' && $side!=''){
+		//User filled all the fields.
+		if(pin_check($pin)){
+			//Pin is ok
+			if(email_check($email)){
+				//Email is ok
+				if(!email_check($under_userid)){
+					//Under userid is ok
+					if(side_check($under_userid,$side)){
+						//Side check
+						$flag=1;
+					}
+					else{
+		echo "<div class='alert alert-danger' role='alert'>
+  					<button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button>
+  					<strong>Sorry!</strong> The Side you selected is NOT AVAILABLE
+				</div>";
+					}
+				}
+				else{
+					//check under userid
+				echo "<div class='alert alert-danger' role='alert'>
+  					<button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button>
+  					<strong>Sorry!</strong> Invalid Under User ID
+				</div>";
+				}
+			}
+			else{
+				//check email
+				echo "<div class='alert alert-danger' role='alert'>
+  					<button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button>
+  					<strong>Sorry!</strong> Email is Unavailable
+				</div>";
+			}
+		}
+		else{
+			//check pin
+			echo "<div class='alert alert-danger' role='alert'>
+  					<button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button>
+  					<strong>Sorry! </strong> Invalid Pin
+				</div>";
+		}
+	}
+	else{
+		//check all fields are fill
+	echo "<div class='alert alert-danger' role='alert'>
+  					<button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button>
+  					<strong>Please</strong> Fill All the Fields!
+				</div>";
+	}
+	
+	//Now we are heree
+	//It means all the information is correct
+	//Now we will save all the information
+	if($flag==1){
+		$date=date("Y-m-d");
+		//Insert into User profile
+		$query = mysqli_query($con,"insert into user(`last_name`,`middle_name`,`first_name`,`email`,`password`,`mobile`,`address`,`birthday`,`account`,`under_userid`,`side`,`user_level`,`date_entered`,`birthdate`,`gender`,`beneficiary`,`beneficiary_contact`,`beneficiary_address`,`mobile2`,`fb`) values('$last_name','$middle_name','$first_name','$email','$password','$mobile','$address', '$birthdate','$pin-$t','$userid','$side','$level','$date','$birthdate','$gender','$beneficiary','$beneficiary_contact','$beneficiary_Address','$mobile2', '$fb')");
+		
+		//Insert into Tree
+		//So that later on we can view tree.
+		$query = mysqli_query($con,"insert into tree(`userid`,`user_level`) values('$email', '$level')");
+		$query = mysqli_query($con,"insert into bunos(`userid` ) values('$email')");
+		$query = mysqli_query($con,"insert into payment_method(`userid` ) values('$email')");
+		//Insert to side
+		$query = mysqli_query($con,"update tree set `$side`='$email' where userid='$under_userid'");
+		//updatelast movement
+		$query = mysqli_query($con,"update user set last_movement='$date' where email='$under_userid'");
+		//Update pin status to close
+		$query = mysqli_query($con,"update pin_list set status='close' where pin='$pin'");
+		
+		//Inset into Icome
+	$query = mysqli_query($con,"insert into income (`userid`,`under_userid`) values('$email','$userid')");
+		echo mysqli_error($con);
+		//This is the main part to join a user\
+		//If you will do any mistake here. Then the site will not work.
+		
+		//Update count and Income.
+		$temp_under_userid = $under_userid;
+		$temp_side_count = $side.'count'; //leftcount or rightcount
+		
+		$temp_side = $side;
+		$total_count=1;
+		$i=1;
+		while($total_count>0){
+			$i;
+			$q = mysqli_query($con,"select * from tree where userid='$temp_under_userid'");
+			$r = mysqli_fetch_array($q);
+			$current_temp_side_count = $r[$temp_side_count]+1;
+			$temp_under_userid;
+			$temp_side_count;
+			mysqli_query($con,"update tree set `$temp_side_count`=$current_temp_side_count where userid='$temp_under_userid'");
+			
+			//income
+			if($temp_under_userid!=""){
+				$income_data = income($temp_under_userid);
+				$bunos_data = bunos($temp_under_userid);
+				//check capping
+				//$income_data['day_bal'];
+				if($income_data['day_bal']<$capping){
+					$tree_data = tree($temp_under_userid);
+					
+					//check leftplusright
+					//$tree_data['leftcount'];
+					//$tree_data['rightcount'];
+					//$leftplusright;
+					
+					$temp_A_count = $tree_data['Acount'];
+					$temp_B_count = $tree_data['Bcount'];
+					$temp_C_count = $tree_data['Ccount'];
+					$temp_D_count = $tree_data['Dcount'];
+					$temp_E_count = $tree_data['Ecount'];
+					$temp_F_count = $tree_data['Fcount'];
+					$temp_G_count = $tree_data['Gcount'];
+					$temp_H_count = $tree_data['Hcount'];
+					$temp_I_count = $tree_data['Icount'];
+					$temp_J_count = $tree_data['Jcount'];
+					$temp_K_count = $tree_data['Kcount'];
+					$temp_L_count = $tree_data['Lcount'];
+
+					
+					ChromePhp::log($i);
+					$user_Compensation = userCompensation($i);
+					ChromePhp::log($user_Compensation);
+					$new_day_bal = $income_data['day_bal']+ $user_Compensation;
+					$new_current_bal = $income_data['current_bal']+ $user_Compensation;
+					$new_total_bal = $income_data['total_bal']+ $user_Compensation;
+					$date= date("y-m-d");
+								
+					mysqli_query($con,"update income set day_bal='$new_day_bal', current_bal='$new_current_bal', total_bal='$new_total_bal' where userid='$temp_under_userid' limit 1");
+					if($i != 7){
+					$q=mysqli_query($con,"insert into income_history(`user_id`,`amount`,`level`,`date`,`category`) values('$temp_under_userid', '$user_Compensation', '$i','$date','compensation' )");
+					ChromePhp::log($q);
+					}
+
+					//Both left and right side should at least 1 user
+					if($temp_A_count>0 && $temp_B_count>0 && $temp_C_count>0 && $temp_D_count>0 && $temp_E_count>0 && $temp_F_count>0 && $temp_G_count>0 && $temp_H_count>0 && $temp_I_count>0 && $temp_J_count>0 && $temp_K_count>0 && $temp_L_count>0){
+						if($temp_side=='A'){
+							$temp_A_count;
+							$temp_B_count;
+							$temp_C_count;
+							$temp_D_count;
+							$temp_E_count;
+							$temp_F_count;
+							$temp_G_count;
+							$temp_H_count;
+							$temp_I_count;
+							$temp_J_count;
+							$temp_K_count;
+							$temp_L_count;
+							if($temp_A_count<=$temp_B_count && $temp_A_count<=$temp_C_count && $temp_A_count<=$temp_D_count && $temp_A_count<=$temp_E_count && $temp_A_count<=$temp_F_count && $temp_A_count<=$temp_G_count && $temp_A_count<=$temp_H_count && $temp_A_count<=$temp_I_count && $temp_A_count<=$temp_J_count && $temp_A_count<=$temp_K_count && $temp_A_count<=$temp_L_count){
+								
+							$new_bunos_count = $bunos_data['bunos_count']+1;
+								
+								//update income
+								mysqli_query($con,"update bunos set bunos_count='$new_bunos_count' where userid='$temp_under_userid' limit 1");	
+
+							}
+						}
+						elseif($temp_side=='B'){
+							$temp_A_count;
+							$temp_B_count;
+							$temp_C_count;
+							$temp_D_count;
+							$temp_E_count;
+							$temp_F_count;
+							$temp_G_count;
+							$temp_H_count;
+							$temp_I_count;
+							$temp_J_count;
+							$temp_K_count;
+							$temp_L_count;
+							if($temp_B_count<=$temp_A_count && $temp_B_count<=$temp_C_count && $temp_B_count<=$temp_D_count && $temp_B_count<=$temp_E_count && $temp_B_count<=$temp_F_count && $temp_B_count<=$temp_G_count && $temp_B_count<=$temp_H_count && $temp_B_count<=$temp_I_count && $temp_B_count<=$temp_J_count && $temp_B_count<=$temp_K_count && $temp_B_count<=$temp_L_count){
+								
+								$new_bunos_count = $bunos_data['bunos_count']+1;
+								
+								//update income
+								mysqli_query($con,"update bunos set bunos_count='$new_bunos_count' where userid='$temp_under_userid' limit 1");	
+
+							}
+						}
+						elseif($temp_side=='C'){
+							$temp_A_count;
+							$temp_B_count;
+							$temp_C_count;
+							$temp_D_count;
+							$temp_E_count;
+							$temp_F_count;
+							$temp_G_count;
+							$temp_H_count;
+							$temp_I_count;
+							$temp_J_count;
+							$temp_K_count;
+							$temp_L_count;
+							if($temp_C_count<=$temp_A_count && $temp_C_count<=$temp_B_count && $temp_C_count<=$temp_D_count && $temp_C_count<=$temp_E_count && $temp_C_count<=$temp_F_count && $temp_C_count<=$temp_G_count && $temp_C_count<=$temp_H_count && $temp_Ccount<=$temp_I_count && $temp_C_count<=$temp_J_count && $temp_C_count<=$temp_K_count && $temp_C_count<=$temp_L_count){
+								
+								$new_bunos_count = $bunos_data['bunos_count']+1;
+								
+								//update income
+								mysqli_query($con,"update bunos set bunos_count='$new_bunos_count' where userid='$temp_under_userid' limit 1");	
+
+							}
+						}
+						elseif($temp_side=='D'){
+							$temp_A_count;
+							$temp_B_count;
+							$temp_C_count;
+							$temp_D_count;
+							$temp_E_count;
+							$temp_F_count;
+							$temp_G_count;
+							$temp_H_count;
+							$temp_I_count;
+							$temp_J_count;
+							$temp_K_count;
+							$temp_L_count;
+							if($temp_D_count<=$temp_A_count && $temp_D_count<=$temp_C_count && $temp_D_count<=$temp_B_count && $temp_D_count<=$temp_E_count && $temp_D_count<=$temp_F_count && $temp_D_count<=$temp_G_count && $temp_D_count<=$temp_H_count && $temp_D_count<=$temp_I_count && $temp_D_count<=$temp_J_count && $temp_D_count<=$temp_K_count && $temp_D_count<=$temp_L_count){
+								
+								$new_bunos_count = $bunos_data['bunos_count']+1;
+								
+								//update income
+								mysqli_query($con,"update bunos set bunos_count='$new_bunos_count' where userid='$temp_under_userid' limit 1");	
+
+							}
+						}
+						elseif($temp_side=='E'){
+							$temp_A_count;
+							$temp_B_count;
+							$temp_C_count;
+							$temp_D_count;
+							$temp_E_count;
+							$temp_F_count;
+							$temp_G_count;
+							$temp_H_count;
+							$temp_I_count;
+							$temp_J_count;
+							$temp_K_count;
+							$temp_L_count;
+							if($temp_E_count<=$temp_A_count && $temp_E_count<=$temp_C_count && $temp_E_count<=$temp_D_count && $temp_E_count<=$temp_B_count && $temp_E_count<=$temp_F_count && $temp_E_count<=$temp_G_count && $temp_E_count<=$temp_H_count && $temp_E_count<=$temp_I_count && $temp_E_count<=$temp_J_count && $temp_E_count<=$temp_K_count && $temp_E_count<=$temp_L_count){
+								
+								$new_bunos_count = $bunos_data['bunos_count']+1;
+								
+								//update income
+								mysqli_query($con,"update bunos set bunos_count='$new_bunos_count' where userid='$temp_under_userid' limit 1");	
+
+							}
+						}
+						elseif($temp_side=='F'){
+							$temp_A_count;
+							$temp_B_count;
+							$temp_C_count;
+							$temp_D_count;
+							$temp_E_count;
+							$temp_F_count;
+							$temp_G_count;
+							$temp_H_count;
+							$temp_I_count;
+							$temp_J_count;
+							$temp_K_count;
+							$temp_L_count;
+							if($temp_F_count<=$temp_A_count && $temp_F_count<=$temp_C_count && $temp_F_count<=$temp_D_count && $temp_F_count<=$temp_E_count && $temp_F_count<=$temp_B_count && $temp_F_count<=$temp_G_count && $temp_F_count<=$temp_H_count && $temp_F_count<=$temp_I_count && $temp_F_count<=$temp_J_count && $temp_F_count<=$temp_K_count && $temp_F_count<=$temp_L_count){
+								
+								$new_bunos_count = $bunos_data['bunos_count']+1;
+								
+								//update income
+								mysqli_query($con,"update bunos set bunos_count='$new_bunos_count' where userid='$temp_under_userid' limit 1");	
+
+							}
+						}
+						elseif($temp_side=='G'){
+							$temp_A_count;
+							$temp_B_count;
+							$temp_C_count;
+							$temp_D_count;
+							$temp_E_count;
+							$temp_F_count;
+							$temp_G_count;
+							$temp_H_count;
+							$temp_I_count;
+							$temp_J_count;
+							$temp_K_count;
+							$temp_L_count;
+							if($temp_G_count<=$temp_A_count && $temp_G_count<=$temp_C_count && $temp_G_count<=$temp_D_count && $temp_G_count<=$temp_E_count && $temp_G_count<=$temp_F_count && $temp_G_count<=$temp_B_count && $temp_G_count<=$temp_H_count && $temp_G_count<=$temp_I_count && $temp_G_count<=$temp_J_count && $temp_G_count<=$temp_K_count && $temp_G_count<=$temp_L_count){
+								
+								$new_bunos_count = $bunos_data['bunos_count']+1;
+								
+								//update income
+								mysqli_query($con,"update bunos set bunos_count='$new_bunos_count' where userid='$temp_under_userid' limit 1");	
+
+							}
+						}
+						elseif($temp_side=='H'){
+							$temp_A_count;
+							$temp_B_count;
+							$temp_C_count;
+							$temp_D_count;
+							$temp_E_count;
+							$temp_F_count;
+							$temp_G_count;
+							$temp_H_count;
+							$temp_I_count;
+							$temp_J_count;
+							$temp_K_count;
+							$temp_L_count;
+							if($temp_H_count<=$temp_A_count && $temp_H_count<=$temp_C_count && $temp_H_count<=$temp_D_count && $temp_H_count<=$temp_E_count && $temp_H_count<=$temp_F_count && $temp_H_count<=$temp_G_count && $temp_H_count<=$temp_B_count && $temp_H_count<=$temp_I_count && $temp_H_count<=$temp_J_count && $temp_H_count<=$temp_K_count && $temp_H_count<=$temp_L_count){
+								
+								$new_bunos_count = $bunos_data['bunos_count']+1;
+								
+								//update income
+								mysqli_query($con,"update bunos set bunos_count='$new_bunos_count' where userid='$temp_under_userid' limit 1");	
+
+							}
+						}
+						elseif($temp_side=='I'){
+							$temp_A_count;
+							$temp_B_count;
+							$temp_C_count;
+							$temp_D_count;
+							$temp_E_count;
+							$temp_F_count;
+							$temp_G_count;
+							$temp_H_count;
+							$temp_I_count;
+							$temp_J_count;
+							$temp_K_count;
+							$temp_L_count;
+							if($temp_I_count<=$temp_A_count && $temp_I_count<=$temp_C_count && $temp_I_count<=$temp_D_count && $temp_I_count<=$temp_E_count && $temp_I_count<=$temp_F_count && $temp_I_count<=$temp_G_count && $temp_I_count<=$temp_H_count && $temp_I_count<=$temp_B_count && $temp_I_count<=$temp_J_count && $temp_I_count<=$temp_K_count && $temp_I_count<=$temp_L_count){
+								
+								$new_bunos_count = $bunos_data['bunos_count']+1;
+								
+								//update income
+								mysqli_query($con,"update bunos set bunos_count='$new_bunos_count' where userid='$temp_under_userid' limit 1");	
+
+							}
+						}
+						elseif($temp_side=='J'){
+							$temp_A_count;
+							$temp_B_count;
+							$temp_C_count;
+							$temp_D_count;
+							$temp_E_count;
+							$temp_F_count;
+							$temp_G_count;
+							$temp_H_count;
+							$temp_I_count;
+							$temp_J_count;
+							$temp_K_count;
+							$temp_L_count;
+							if($temp_J_count<=$temp_A_count && $temp_J_count<=$temp_C_count && $temp_J_count<=$temp_D_count && $temp_J_count<=$temp_E_count && $temp_J_count<=$temp_F_count && $temp_J_count<=$temp_G_count && $temp_J_count<=$temp_H_count && $temp_J_count<=$temp_I_count && $temp_J_count<=$temp_B_count && $temp_J_count<=$temp_K_count && $temp_J_count<=$temp_L_count){
+								
+								$new_bunos_count = $bunos_data['bunos_count']+1;
+								
+								//update income
+								mysqli_query($con,"update bunos set bunos_count='$new_bunos_count' where userid='$temp_under_userid' limit 1");	
+
+							}
+						}
+						elseif($temp_side=='K'){
+							$temp_A_count;
+							$temp_B_count;
+							$temp_C_count;
+							$temp_D_count;
+							$temp_E_count;
+							$temp_F_count;
+							$temp_G_count;
+							$temp_H_count;
+							$temp_I_count;
+							$temp_J_count;
+							$temp_K_count;
+							$temp_L_count;
+							if($temp_K_count<=$temp_A_count && $temp_K_count<=$temp_C_count && $temp_K_count<=$temp_D_count && $temp_K_count<=$temp_E_count && $temp_K_count<=$temp_F_count && $temp_K_count<=$temp_G_count && $temp_K_count<=$temp_H_count && $temp_K_count<=$temp_I_count && $temp_K_count<=$temp_J_count && $temp_K_count<=$temp_B_count && $temp_K_count<=$temp_L_count){
+								
+								$new_bunos_count = $bunos_data['bunos_count']+1;
+								
+								//update income
+								mysqli_query($con,"update bunos set bunos_count='$new_bunos_count' where userid='$temp_under_userid' limit 1");	
+
+							}
+						}
+						else{
+							if($temp_C_count<=$temp_A_count && $temp_C_count<=$temp_B_count){
+						
+								$new_bunos_count = $bunos_data['bunos_count']+1;
+								$temp_under_userid;
+								//update income
+								if(mysqli_query($con,"update bunos set bunos_count='$new_bunos_count' where userid='$temp_under_userid' limit 1")){
+									
+								}
+							}
+						}
+					}//Both left and right side should at least 1 user
+					
+				}
+				//change under_userid
+				ChromePhp::log($temp_under_userid);
+				$next_under_userid = getUnderId($temp_under_userid);
+				$temp_side = getUnderIdPlace($temp_under_userid);
+				$temp_side_count = $temp_side.'count';
+				$temp_under_userid = $next_under_userid;	
+				
+				$i++;
+			}
+			
+			//Chaeck for the last user
+			if($temp_under_userid==""){
+				$total_count=0;
+			}
+			
+		}//Loop
+		
+		
+		
+		
+		echo mysqli_error($con);
+		
+			echo "
+						<div class='alert alert-success' role='alert'>
+  					<button type='button' class='close' data-dismiss='alert' aria-label='Close'><span aria-hidden='true'>&times;</span></button>
+  					<strong>Success!</strong>
+				</div>
+					";
+	}
+	
+}
+?><!--/join user-->
+<?php 
+//functions
+function pin_check($pin){
+	global $con,$get_user;
+	
+	$query =mysqli_query($con,"select * from pin_list where pin='$pin' and userid='$get_user' and status='open'");
+	if(mysqli_num_rows($query)>0){
+		return true;
+	}
+	else{
+		return false;
+	}
+}
+function email_check($email){
+	global $con;
+	
+	$query =mysqli_query($con,"select * from user where email='$email'");
+	if(mysqli_num_rows($query)>0){
+		return false;
+	}
+	else{
+		return true;
+	}
+}
+function side_check($email,$side){
+	global $con;
+	
+	$query =mysqli_query($con,"select * from tree where userid='$email'");
+	$result = mysqli_fetch_array($query);
+	$side_value = $result[$side];
+	if($side_value==''){
+		return true;
+	}
+	else{
+		return false;
+	}
+}
+function income($userid){
+	global $con;
+	$data = array();
+	$query = mysqli_query($con,"select * from income where userid='$userid'");
+	$result = mysqli_fetch_array($query);
+	$data['day_bal'] = $result['day_bal'];
+	$data['current_bal'] = $result['current_bal'];
+	$data['total_bal'] = $result['total_bal'];
+	
+	return $data;
+}
+function tree($userid){
+	global $con;
+	$data = array();
+	$query = mysqli_query($con,"select * from tree where userid='$userid'");
+	$result = mysqli_fetch_array($query);
+	$data['A'] = $result['A'];
+	$data['B'] = $result['B'];
+	$data['C'] = $result['C'];
+	$data['D'] = $result['D'];
+	$data['E'] = $result['E'];
+	$data['F'] = $result['F'];
+	$data['G'] = $result['G'];
+	$data['H'] = $result['H'];
+	$data['I'] = $result['I'];
+	$data['J'] = $result['J'];
+	$data['K'] = $result['K'];
+	$data['L'] = $result['L'];
+	$data['Acount'] = $result['Acount'];
+	$data['Bcount'] = $result['Bcount'];
+	$data['Ccount'] = $result['Ccount'];
+	$data['Dcount'] = $result['Dcount'];
+	$data['Ecount'] = $result['Ecount'];
+	$data['Fcount'] = $result['Fcount'];
+	$data['Gcount'] = $result['Gcount'];
+	$data['Hcount'] = $result['Hcount'];
+	$data['Icount'] = $result['Icount'];
+	$data['Jcount'] = $result['Jcount'];
+	$data['Kcount'] = $result['Kcount'];
+	$data['Lcount'] = $result['Lcount'];
+	
+	return $data;
+}
+function bunos($userid){
+	global $con;
+	$bunos = array();
+	$query = mysqli_query($con,"select * from bunos where userid='$userid'");
+	$result = mysqli_fetch_array($query);
+	$bunos['bunos_count'] = $result['bunos_count'];
+
+	
+	return $bunos;
+}
+function getUnderId($userid){
+	global $con;
+	$query = mysqli_query($con,"select * from user where email='$userid'");
+	$result = mysqli_fetch_array($query);
+	return $result['under_userid'];
+}
+function getUnderIdPlace($userid){
+	global $con;
+	$query = mysqli_query($con,"select * from user where email='$userid'");
+	$result = mysqli_fetch_array($query);
+	return $result['side'];
+}
+function getUserLevel($userid){
+	global $con;
+	$query = mysqli_query($con,"select * from user where email='$userid'");
+	$result = mysqli_fetch_array($query);
+	return $result['user_level'] + 1; 
+}
+
+function userCompensation($userlevel){
+	global $con;
+	$data = array();
+
+	$level = $userlevel;
+
+	switch ($level) {
+		case 0:	
+			$query1 = mysqli_query($con,"select * from compensation where level='$level'");
+			$result1 = mysqli_fetch_array($query1);
+			return $result1['amount'];
+			break;
+		case 1:		
+			$query1 = mysqli_query($con,"select * from compensation where level='$level'");
+			$result1 = mysqli_fetch_array($query1);
+			return $result1['amount'];
+			break;
+		case 2:		
+			$query1 = mysqli_query($con,"select * from compensation where level='$level'");
+			$result1 = mysqli_fetch_array($query1);
+			return $result1['amount'];
+			break;
+		case 3:		
+			$query1 = mysqli_query($con,"select * from compensation where level='$level'");
+			$result1 = mysqli_fetch_array($query1);
+			return $result1['amount'];
+			break;
+		case 4:
+			
+			$query1 = mysqli_query($con,"select * from compensation where level='$level'");
+			$result1 = mysqli_fetch_array($query1);
+			return $result1['amount'];
+			break;
+		case 5:
+			$query1 = mysqli_query($con,"select * from compensation where level='$level'");
+			$result1 = mysqli_fetch_array($query1);
+			return $result1['amount'];
+			break;
+	    case 6:
+			$query1 = mysqli_query($con,"select * from compensation where level='$level'");
+			$result1 = mysqli_fetch_array($query1);
+			return $result1['amount'];
+			break;	
+		default:
+		return 0;
+	}
+	
+	return $data;
+}
+
+?>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>Leafy Root Foods Inc. Website  - Join</title>
+
+    <!-- Bootstrap Core CSS -->
+    <link href="vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- MetisMenu CSS -->
+    <link href="vendor/metisMenu/metisMenu.min.css" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <link href="dist/css/sb-admin-2.css" rel="stylesheet">
+
+    <!-- Custom Fonts -->
+    <link href="vendor/font-awesome/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+
+ 
+
+</head>
+
+<body>
+
+    <div id="wrapper">
+
+        <!-- Navigation -->
+        <?php include('php-includes/menu.php'); ?>
+
+        <!-- Page Content -->
+        <div id="page-wrapper">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-lg-12">
+                        <h1 class="page-header">Distributor's Request</h1>
+                    </div>
+                    <!-- /.col-lg-12 -->
+                </div>
+                <!-- /.row -->
+                <div class="row">
+                	<div class="col-lg-4">
+                    	<form method="get">
+                    	        <div class="form-group">
+                                <label>Account ID</label>
+                                <input type="text" name="accountID" value='<?php echo $get_user ?>' style="font-size: 22px; border-color : #0e8239; padding: 21px" class="form-control"  readonly>
+                            </div>
+                             
+                            <div class="form-group">
+                                <label>Pin</label>
+                                <input type="text" name="pin" style="font-size: 22px; border-color : #0e8239; padding: 21px" class="form-control" required>
+                            </div>
+                              <div class="form-group">
+                                <label>First name</label>
+                                <input type="text" name="first_name" style="font-size: 22px; border-color : #0e8239; padding: 21px" class="form-control" required>
+                            </div>
+                              <div class="form-group">
+                                <label>Middle Name</label>
+                                <input type="text" name="middle_name" style="font-size: 22px; border-color : #0e8239; padding: 21px" class="form-control" required>
+                            </div>
+                             <div class="form-group">
+                                <label>Last name</label>
+                                <input type="text" name="last_name" style="font-size: 22px; border-color : #0e8239; padding: 21px" class="form-control" required>
+                            </div>
+                              <div class="form-group">
+                                <label>Gender</label>
+                                <input type="radio" name="gender" style="width:25px; height:25px;" value="Male" checked> Male
+                                <input type="radio" name="gender" style="width:25px; height:25px;" value="Female"> Female
+                                
+                               
+                            </div>
+                            <div class="form-group">
+                                <label>Mobile 1</label>
+                                <input type="text" name="mobile" style="font-size: 22px; border-color : #0e8239; padding: 21px" class="form-control" required>
+                            </div>
+                              <div class="form-group">
+                                <label>Mobile 2</label>
+                                <input type="text" name="mobile2" style="font-size: 22px; border-color : #0e8239; padding: 21px" class="form-control" required>
+                            </div>
+                              <div class="form-group">
+                                <label>Facebook</label>
+                                <input type="text" name="fb" style="font-size: 22px; border-color : #0e8239; padding: 21px" class="form-control"  required>
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" name="email" style="font-size: 22px; border-color : #0e8239; padding: 21px" class="form-control"  required>
+                            </div>
+                             <div class="form-group">
+                                <label>Birth Date</label>
+                                <input type="date" name="birthdate" style="font-size: 22px; border-color : #0e8239; padding: 21px" class="form-control" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Address</label>
+                                <input type="text" name="address" style="font-size: 22px; border-color : #0e8239; padding: 21px" class="form-control" required>
+                            </div>
+                            
+                             <div class="form-group">
+                                <label>Beneficiary</label>
+                                <input type="text" name="beneficiary" style="font-size: 22px; border-color : #0e8239; padding: 21px" class="form-control" required>
+                            </div>
+                             <div class="form-group">
+                                <label>Beneficiary Contact Information</label>
+                                <input type="text" name="beneficiary_contact" style="font-size: 22px; border-color : #0e8239; padding: 21px" class="form-control" required>
+                            </div>
+                             <div class="form-group">
+                                <label>Beneficiary Address</label>
+                                <input type="text" name="beneficiary_Address" style="font-size: 22px; border-color : #0e8239; padding: 21px" class="form-control" required>
+                            </div>
+                             <div class="form-group">
+                                <label>Product Cost</label>
+                              <input type="text" value="2,000" style="font-size: 22px; border-color : #0e8239; padding: 21px" class="form-control"  readonly>
+                            </div>
+                              <div class="form-group">
+                                <label>Shipping Fee (COD)</label>
+                              <input type="text" " value="150" style="font-size: 22px; border-color : #0e8239; padding: 21px" class="form-control"  readonly>
+                            </div>
+                            <div class="form-group">
+                                <label>Side</label><br>
+
+                         <?php 
+                         
+                         	$users_email = $result_get_userid['email'];
+						$get_tree_A = mysqli_query($con,"SELECT COUNT(A) AS CA FROM tree where userid='$users_email'");
+						$result_get_tree_A  = mysqli_fetch_array($get_tree_A);
+						$get_tree_result_A = $result_get_tree_A['CA'];
+						
+						$get_tree_B = mysqli_query($con,"SELECT COUNT(B) AS CB FROM tree where userid='$users_email'");
+						$result_get_tree_B  = mysqli_fetch_array($get_tree_B);
+						$get_tree_result_B = $result_get_tree_B['CB'];
+						
+						$get_tree_C = mysqli_query($con,"SELECT COUNT(C) AS CC FROM tree where userid='$users_email'");
+						$result_get_tree_C  = mysqli_fetch_array($get_tree_C);
+						$get_tree_result_C = $result_get_tree_C['CC'];
+						
+							$get_tree_D = mysqli_query($con,"SELECT COUNT(D) AS CD FROM tree where userid='$users_email'");
+						$result_get_tree_D  = mysqli_fetch_array($get_tree_D);
+						$get_tree_result_D = $result_get_tree_D['CD'];
+						
+							$get_tree_E = mysqli_query($con,"SELECT COUNT(E) AS CE FROM tree where userid='$users_email'");
+						$result_get_tree_E  = mysqli_fetch_array($get_tree_E);
+						$get_tree_result_E = $result_get_tree_E['CE'];
+						
+							$get_tree_F = mysqli_query($con,"SELECT COUNT(F) AS CF FROM tree where userid='$users_email'");
+						$result_get_tree_F  = mysqli_fetch_array($get_tree_F);
+						$get_tree_result_F = $result_get_tree_F['CF'];
+						
+							$get_tree_G = mysqli_query($con,"SELECT COUNT(G) AS CG FROM tree where userid='$users_email'");
+						$result_get_tree_G  = mysqli_fetch_array($get_tree_G);
+						$get_tree_result_G = $result_get_tree_G['CG'];
+						
+							$get_tree_H = mysqli_query($con,"SELECT COUNT(H) AS CH FROM tree where userid='$users_email'");
+						$result_get_tree_H  = mysqli_fetch_array($get_tree_H);
+						$get_tree_result_H= $result_get_tree_H['CH'];
+						
+							$get_tree_I = mysqli_query($con,"SELECT COUNT(I) AS CI FROM tree where userid='$users_email'");
+						$result_get_tree_I  = mysqli_fetch_array($get_tree_I);
+						$get_tree_result_I= $result_get_tree_I['CI'];
+						
+							$get_tree_J = mysqli_query($con,"SELECT COUNT(J) AS CJ FROM tree where userid='$users_email'");
+						$result_get_tree_J  = mysqli_fetch_array($get_tree_J);
+						$get_tree_result_J= $result_get_tree_J['CJ'];
+						
+							$get_tree_K = mysqli_query($con,"SELECT COUNT(K) AS CK FROM tree where userid='$users_email'");
+						$result_get_tree_K  = mysqli_fetch_array($get_tree_K);
+						$get_tree_result_K= $result_get_tree_K['CK'];
+						
+							$get_tree_L = mysqli_query($con,"SELECT COUNT(L) AS CL FROM tree where userid='$users_email'");
+						$result_get_tree_L  = mysqli_fetch_array($get_tree_L);
+						$get_tree_result_L= $result_get_tree_L['CL'];
+						
+						
+			     	
+			     		
+			     		if($result_get_tree_A['CA'] >0){
+			     		    echo'
+                                <input type="radio" name="side" style="width:25px; height:25px;" value="A" disabled> A';
+                    
+			     		}
+			     		else{
+			     		    echo'<input type="radio" name="side" style="width:25px; height:25px;" value="A" > A';
+			     		}
+			     		
+			     			if($result_get_tree_B['CB'] >0){
+			     		    echo'
+                                <input type="radio" name="side" style="width:25px; height:25px;" value="B" disabled> B';
+                    
+			     		}
+			     		else{
+			     		    echo'<input type="radio" name="side" style="width:25px; height:25px;" value="B" > B';
+			     		}
+			     		
+			     			if($result_get_tree_C['CC'] >0){
+			     		    echo'
+                                <input type="radio" name="side" style="width:25px; height:25px;" value="C" disabled> C';
+                    
+			     		}
+			     		else{
+			     		    echo'<input type="radio" name="side" style="width:25px; height:25px;" value="C" > C';
+			     		}
+			     			if($result_get_tree_D['CD'] >0){
+			     		    echo'
+                                <input type="radio" name="side" style="width:25px; height:25px;" value="D" disabled> D';
+                    
+			     		}
+			     		else{
+			     		    echo'<input type="radio" name="side" style="width:25px; height:25px;" value="D" > D';
+			     		}
+			     			if($result_get_tree_E['CE'] >0){
+			     		    echo'
+                                <input type="radio" name="side" style="width:25px; height:25px;" value="E" disabled> E';
+                    
+			     		}
+			     		else{
+			     		    echo'<input type="radio" name="side" style="width:25px; height:25px;" value="E" > E';
+			     		}
+			     			if($result_get_tree_F['CF'] >0){
+			     		    echo'
+                                <input type="radio" name="side" style="width:25px; height:25px;" value="F" disabled> F';
+                    
+			     		}
+			     		else{
+			     		    echo'<input type="radio" name="side" style="width:25px; height:25px;" value="F" > F';
+			     		}
+			     			if($result_get_tree_G['CG'] >0){
+			     		    echo'
+                                <input type="radio" name="side" style="width:25px; height:25px;" value="G" disabled> G';
+                    
+			     		}
+			     		else{
+			     		    echo'<input type="radio" name="side" style="width:25px; height:25px;" value="G" > G';
+			     		}
+			     			if($result_get_tree_H['CH'] >0){
+			     		    echo'
+                                <input type="radio" name="side" style="width:25px; height:25px;" value="H" disabled> H';
+                    
+			     		}
+			     		else{
+			     		    echo'<input type="radio" name="side" style="width:25px; height:25px;" value="H" > H';
+			     		}
+			     			if($result_get_tree_I['CI'] >0){
+			     		    echo'
+                                <input type="radio" name="side" style="width:25px; height:25px;" value="I" disabled> I';
+                    
+			     		}
+			     		else{
+			     		    echo'<input type="radio" name="side" style="width:25px; height:25px;" value="I" > I';
+			     		}
+			     			if($result_get_tree_J['CJ'] >0){
+			     		    echo'
+                                <input type="radio" name="side" style="width:25px; height:25px;" value="J" disabled> J';
+                    
+			     		}
+			     		else{
+			     		    echo'<input type="radio" name="side" style="width:25px; height:25px;" value="J" > J';
+			     		}
+			     			if($result_get_tree_K['CK'] >0){
+			     		    echo'
+                                <input type="radio" name="side" style="width:25px; height:25px;" value="K" disabled> K';
+                    
+			     		}
+			     		else{
+			     		    echo'<input type="radio" name="side" style="width:25px; height:25px;" value="K" > K';
+			     		}
+			     		
+			     			if($result_get_tree_L['CL'] >0){
+			     		    echo'
+                                <input type="radio" name="side" style="width:25px; height:25px;" value="L" disabled> L';
+                    
+			     		}
+			     		else{
+			     		    echo'<input type="radio" name="side" style="width:25px; height:25px;" value="L" > L';
+			     		}
+			     		
+						?> 
+					
+                                
+                                
+                                
+                                
+                         
+                            </div>
+                            
+                            <div class="form-group">
+                        	<input type="submit" name="join_user" class="btn btn-primary" value="Join">
+                        </div>
+                        </form>
+                    </div>
+                </div><!--/.row-->
+            </div>
+            <!-- /.container-fluid -->
+        </div>
+        <!-- /#page-wrapper -->
+
+    </div>
+    <!-- /#wrapper -->
+
+    <!-- jQuery -->
+    <script src="vendor/jquery/jquery.min.js"></script>
+
+    <!-- Bootstrap Core JavaScript -->
+    <script src="vendor/bootstrap/js/bootstrap.min.js"></script>
+
+    <!-- Metis Menu Plugin JavaScript -->
+    <script src="vendor/metisMenu/metisMenu.min.js"></script>
+
+    <!-- Custom Theme JavaScript -->
+    <script src="dist/js/sb-admin-2.js"></script>
+
+</body>
+
+</html>
